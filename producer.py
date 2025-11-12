@@ -15,6 +15,7 @@ import random
 import math
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
+import requests
 
 # Kafka libraries
 from kafka import KafkaProducer
@@ -88,6 +89,8 @@ class StreamingDataProducer:
             self.producer = None
 
     def generate_sample_data(self) -> Dict[str, Any]:
+        API_KEY = "87ba8eb1d8034587ad1131028251211"
+        BASE_URL = "http://api.weatherapi.com/v1/current.json"
         """
         Generate realistic streaming data with stateful patterns
         
@@ -107,74 +110,96 @@ class StreamingDataProducer:
             "unit": "celsius",                    # Measurement unit
         }
         """
-        
+        try:
+            location = "Manila"
+            response = requests.get(BASE_URL, params={"key": API_KEY, "q": location})
+            if response.status_code != 200:
+                print(f"Error fetching weather: {response.status_code}")
+                return None
+
+            weather = response.json()
+
+            data = {
+                "timestamp": weather["location"]["localtime"],
+                "location": weather["location"]["name"],
+                "temperature_c": weather["current"]["temp_c"]
+                "humidity": weather["current"]["humidity"],
+                "pressure_mb": weather["current"]["pressure_mb"]
+                "wind_kph": weather["current"]["wind_kph"]
+                "condition": weather["current"]["condition"]["text"]
+            }
+            return data
+        except Exception as e:
+            print(f"Error generating weather data: {e}")
+            return None
+
         # Select a random sensor from the expanded pool
-        sensor = random.choice(self.sensors)
-        sensor_id = sensor["id"]
-        metric_type = sensor["type"]
+        #sensor = random.choice(self.sensors)
+        #sensor_id = sensor["id"]
+        #metric_type = sensor["type"]
         
         # Initialize sensor state if not exists
-        if sensor_id not in self.sensor_states:
-            config = self.metric_ranges[metric_type]
-            base_value = random.uniform(config["min"], config["max"])
-            trend = random.uniform(config["trend_range"][0], config["trend_range"][1])
-            phase_offset = random.uniform(0, 2 * 3.14159)  # Random phase for daily cycle
+        #if sensor_id not in self.sensor_states:
+            #config = self.metric_ranges[metric_type]
+            #base_value = random.uniform(config["min"], config["max"])
+            #trend = random.uniform(config["trend_range"][0], config["trend_range"][1])
+            #phase_offset = random.uniform(0, 2 * 3.14159)  # Random phase for daily cycle
             
-            self.sensor_states[sensor_id] = {
-                "base_value": base_value,
-                "trend": trend,
-                "phase_offset": phase_offset,
-                "last_value": base_value,
-                "message_count": 0
-            }
+            #self.sensor_states[sensor_id] = {
+                #"base_value": base_value,
+                #"trend": trend,
+                #"phase_offset": phase_offset,
+                #"last_value": base_value,
+                #"message_count": 0
+            #}
         
-        state = self.sensor_states[sensor_id]
+        #state = self.sensor_states[sensor_id]
         
         # Calculate progressive timestamp with configurable intervals
-        current_time = self.base_time + timedelta(seconds=self.time_counter)
-        self.time_counter += random.uniform(0.5, 2.0)  # Variable intervals for realism
+        #current_time = self.base_time + timedelta(seconds=self.time_counter)
+        #self.time_counter += random.uniform(0.5, 2.0)  # Variable intervals for realism
         
         # Generate realistic value with patterns
-        config = self.metric_ranges[metric_type]
+        #config = self.metric_ranges[metric_type]
         
         # Daily cycle using sine wave (24-hour period)
-        hours_in_day = 24
-        current_hour = current_time.hour + current_time.minute / 60
-        daily_cycle = math.sin(2 * 3.14159 * current_hour / hours_in_day + state["phase_offset"])
+        #hours_in_day = 24
+        #current_hour = current_time.hour + current_time.minute / 60
+        #daily_cycle = math.sin(2 * 3.14159 * current_hour / hours_in_day + state["phase_offset"])
         
         # Apply trend over time (slow drift)
-        trend_effect = state["trend"] * (state["message_count"] / 100.0)
+        #trend_effect = state["trend"] * (state["message_count"] / 100.0)
         
         # Add realistic noise (small random variations)
-        noise = random.uniform(-config["daily_amplitude"] * 0.1, config["daily_amplitude"] * 0.1)
+        #noise = random.uniform(-config["daily_amplitude"] * 0.1, config["daily_amplitude"] * 0.1)
         
         # Calculate final value with bounds checking
-        base_value = state["base_value"]
-        daily_variation = daily_cycle * config["daily_amplitude"]
-        raw_value = base_value + daily_variation + trend_effect + noise
+        #base_value = state["base_value"]
+        #daily_variation = daily_cycle * config["daily_amplitude"]
+        #raw_value = base_value + daily_variation + trend_effect + noise
         
         # Ensure value stays within reasonable bounds
-        bounded_value = max(config["min"], min(config["max"], raw_value))
+        #bounded_value = max(config["min"], min(config["max"], raw_value))
         
         # Update state
-        state["last_value"] = bounded_value
-        state["message_count"] += 1
+        #state["last_value"] = bounded_value
+        #state["message_count"] += 1
         
         # Occasionally introduce small trend changes for realism
-        if random.random() < 0.01:  # 1% chance per message
-            state["trend"] = random.uniform(config["trend_range"][0], config["trend_range"][1])
+        #if random.random() < 0.01:  # 1% chance per message
+            #state["trend"] = random.uniform(config["trend_range"][0], config["trend_range"][1])
         
         # Generate realistic data structure
-        sample_data = {
-            "timestamp": current_time.isoformat() + 'Z',
-            "value": round(bounded_value, 2),
-            "metric_type": metric_type,
-            "sensor_id": sensor_id,
-            "location": sensor["location"],
-            "unit": sensor["unit"],
-        }
+        #sample_data = {
+            #"timestamp": current_time.isoformat() + 'Z',
+            #"value": round(bounded_value, 2),
+            #"metric_type": metric_type,
+            #"sensor_id": sensor_id,
+            #"location": sensor["location"],
+            #"unit": sensor["unit"],
+        #}
         
-        return sample_data
+        #return sample_data
 
     def serialize_data(self, data: Dict[str, Any]) -> bytes:
         """
@@ -198,7 +223,8 @@ class StreamingDataProducer:
             
             return serialized_data
         except Exception as e:
-            print(f"STUDENT TODO: Implement proper error handling for serialization: {e}")
+            print(f"Serialization error: {e}")
+            #print(f"STUDENT TODO: Implement proper error handling for serialization: {e}")
             return None
 
     def send_message(self, data: Dict[str, Any]) -> bool:
@@ -366,7 +392,8 @@ def main():
             duration=args.duration
         )
     except Exception as e:
-        print(f"STUDENT TODO: Handle main execution errors: {e}")
+        print(f"ERROR: An exception occured during streaming: {e}")
+        # print(f"STUDENT TODO: Handle main execution errors: {e}")
     finally:
         print("Producer execution completed")
 
